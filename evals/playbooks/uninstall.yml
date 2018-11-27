@@ -37,6 +37,14 @@
         name: launcher
         tasks_from: uninstall
       tags: ['launcher']
+      when: launcher
+    -
+      name: Uninstall amq
+      include_role:
+        name: amq
+        tasks_from: uninstall
+      tags: ['amq']
+      when: amp
     -
       name: Uninstall che
       include_role:
@@ -46,6 +54,7 @@
         delete_keycloak_user: false
         che_delete_namespace: true
       tags: ['che']
+      when: che
     - 
       name: Uninstall managed services broker
       include_role:
@@ -58,29 +67,34 @@
         name: 3scale
         tasks_from: uninstall
       tags: ['3scale']
+      when: threescale
     - 
       name: Uninstall Gitea
       include_role:
         name: gitea
         tasks_from: uninstall
       tags: ['gitea']
+      when: gitea
     - 
       name: "Delete enmasse cluster service broker"
       shell: oc delete clusterservicebroker enmasse
       register: output
       failed_when: output.stderr != '' and 'not found' not in output.stderr
+      when: enmasse
     - 
       name: "Delete project namespace: {{ enmasse_namespace | default('enmasse') }} "
       shell: "oc delete project {{ enmasse_namespace | default('enmasse')}} "
       register: output
       failed_when: output.stderr != '' and 'not found' not in output.stderr and 'The system is ensuring all content is removed from this namespace.' not in output.stderr
       changed_when: output.rc == 0
+      when: enmasse
     - 
       name: Uninstall the webapp
       include_role:
         name: webapp
         tasks_from: uninstall
       tags: ['webapp']
+      when: webapp
     - 
       name: Uninstall rhsso
       include_role:
@@ -93,12 +107,14 @@
         name: nexus
         tasks_from: uninstall
       tags: ['nexus']
+      when: nexus
     -
       name: Uninstall Fuse
       include_role:
         name: fuse
         tasks_from: uninstall
       tags: ['fuse']
+      when: fuse
 
 
 - hosts: master
