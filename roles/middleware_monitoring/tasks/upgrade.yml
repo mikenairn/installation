@@ -1,0 +1,3 @@
+---
+- name: "Remove enmasse postgres backup cronjob alert"
+  shell: oc -n {{ monitoring_namespace }} get prometheusrule  backup-monitoring-alerts -o json | jq 'del(.spec.groups[0].rules[] | select(.alert == "CronJobExists_openshift_enmasse-postgres-backup"))' | oc apply -n {{ monitoring_namespace }} -f -
