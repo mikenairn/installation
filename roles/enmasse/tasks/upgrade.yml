@@ -22,10 +22,6 @@
     src: enmasse_hosts.j2
     dest: "{{ enmasse_inventory_path }}/hosts"
 
-- name: Check EnMasse namespace for existing resources
-  shell: oc get all -n {{ enmasse_namespace }}
-  register: enmasse_resources_exist
-
 - include_role:
     name: namespace
   vars:
@@ -44,7 +40,6 @@
   shell: ansible-playbook -i {{ enmasse_inventory_path }}/hosts /tmp/{{enmasse_playbook_location}}
   args:
     chdir: "../"
-  when: enmasse_resources_exist.stderr == "No resources found."
 
 - name: "Verify EnMasse deployment succeeded"
   shell: sleep 5; oc get pods --namespace {{ enmasse_namespace }}  |  grep  "deploy"
@@ -70,3 +65,20 @@
     - /tmp/enmasse-{{ enmasse_version }}.zip
     - /tmp/enmasse-{{ enmasse_version }}
   when: enmasse_clean_artifacts
+
+- name: "Remove Postgresql deployment"
+  shell: "oc delete dc postgresql -n {{ enmasse_namespace }}"
+  register: postgresql_dc_deleted
+  failed_when: postgresql_dc_deleted.stderr != '' and 'NotFound' not in postgresql_dc_deleted.stderr
+
+
+- name: "Remove Postgresql secret"
+  shell: "oc delete secret postgresql -n {{ enmasse_namespace }}"
+  register: postgresql_secret_deleted
+  failed_when: postgresql_secret_deleted.stderr != '' and 'NotFound' not in postgresql_secret_deleted.stderr
+
+
+- name: "Remove keycloak-controller"
+  shell: "oc delete deployment keycloak-controller"
+  register: keycloak_controller_dc_deleted
+  failed_when: keycloak_controller_dc_deleted.stderr != '' and 'NotFound' not in keycloak_controller_dc_deleted.stderr

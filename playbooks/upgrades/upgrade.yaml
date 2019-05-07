@@ -77,3 +77,8 @@
     - include_role:
         name: 3scale
         tasks_from: upgrade
+
+    # AMQ Online / enmasse
+    - include_role:
+        name: enmasse
+        tasks_from: upgrade

@@ -12,3 +12,6 @@ enmasse_enable_monitoring: false
 enmasse_backup_postgres_secret: 'enmasse-postgres-secret'
 enmasse_postgres_cronjob_name: 'enmasse-postgres-backup'
 enmasse_pv_cronjob_name: 'enmasse-pv-backup'
+enmasse_upgrade_directory: 'amq-online-install-1.1'
+enmasse_upgrade_zip_url: 'https://access.redhat.com/node/4098741/423/0/13779961'
+enmasse_upgrade_zip_name: 'amq-online-install-1.1.zip'
