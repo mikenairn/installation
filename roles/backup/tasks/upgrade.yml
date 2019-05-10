@@ -1,10 +1,10 @@
 ---
 - name: "Remove enmasse postgres backup cronjob"
-  shell: oc delete cronjob {{ enmasse_postgres_cronjob_name }} -n {{ backup_namespace }}
+  shell: oc delete cronjob enmasse-postgres-backup -n {{ backup_namespace }}
   register: postgresql_cronjob_deleted
   failed_when: postgresql_cronjob_deleted.stderr != '' and 'NotFound' not in postgresql_cronjob_deleted.stderr
 
 - name: "Remove enmasse postgres backup secret"
-  shell: "oc delete secret {{ enmasse_backup_postgres_secret }} -n {{ backup_namespace }}"
+  shell: "oc delete secret enmasse-postgres-secret -n {{ backup_namespace }}"
   register: postgresql_secret_deleted
   failed_when: postgresql_secret_deleted.stderr != '' and 'NotFound' not in postgresql_secret_deleted.stderr
