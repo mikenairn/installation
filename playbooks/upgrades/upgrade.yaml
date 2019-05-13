@@ -57,48 +57,7 @@
     - name: recreate alerts
       shell: "oc patch keycloak rhsso --type=json --patch='[{\"op\": \"add\", \"path\": \"/status/monitoringResourcesCreated\", \"value\": false}]' -n {{ eval_rhsso_namespace }}"
 
-    # Backuo & Restore
-    - name: make sure the new backup namespace exists
-      shell: "oc create namespace {{ new_backup_namespace }}"
-      register: create_backups_namespace_result
-      failed_when: create_backups_namespace_result.stderr != '' and 'already exists' not in create_backups_namespace_result.stderr
-
-    - name: copy all cronjobs over to the new namespace
-      shell: "oc get cronjobs -n {{ backup_namespace }} -o yaml | sed 's/namespace: {{ backup_namespace }}/namespace: {{ new_backup_namespace }}/' | oc create -f -"
-      register: copy_cronjobs_result
-      failed_when: copy_cronjobs_result.stderr != '' and 'not found' not in copy_cronjobs_result.stderr and 'already exists' not in copy_cronjobs_result.stderr and 'no objects passed to create' not in copy_cronjobs_result.stderr
-
-    - name: copy all secrets over to the new namespace
-      shell: "oc get secret {{ item }} -n {{ backup_namespace }} -o yaml | sed 's/namespace: {{ backup_namespace }}/namespace: {{ new_backup_namespace }}/' | oc create -f -"
-      register: copy_secrets_result
-      failed_when: copy_secrets_result.stderr != '' and 'not found' not in copy_secrets_result.stderr and 'already exists' not in copy_secrets_result.stderr
-      with_items:
-        - codeready-postgres-secret
-        - enmasse-postgres-secret
-        - fuse-postgres-auth
-        - launcher-postgres-auth
-        - s3-credentials
-        - threescale-mysql-secret
-        - threescale-postgres-secret
-
-    - name: delete the cronjobs from the old namespace
-      register: delete_cronjobs_result
-      failed_when: delete_cronjobs_result.stderr != '' and 'not found' not in delete_cronjobs_result.stderr and 'already exists' not in delete_cronjobs_result.stderr and 'no objects passed to create' not in delete_cronjobs_result.stderr
-      shell: "oc delete cronjobs --all -n {{ backup_namespace }}"
-
-    - name: delete the secrets from the old namespace
-      shell: "oc delete secret {{ item }} -n {{ backup_namespace }}"
-      register: delete_secrets_result
-      failed_when: delete_secrets_result.stderr != '' and 'not found' not in delete_secrets_result.stderr and 'already exists' not in delete_secrets_result.stderr
-      with_items:
-        - codeready-postgres-secret
-        - enmasse-postgres-secret
-        - fuse-postgres-auth
-        - launcher-postgres-auth
-        - s3-credentials
-        - threescale-mysql-secret
-        - threescale-postgres-secret
-
+    # Backup & Restore
     - name: add postgres version to secret
       shell: "oc patch secret threescale-postgres-secret --type=json --patch='[{\"op\": \"add\", \"path\": \"/data/POSTGRES_VERSION\", \"value\": \"{{ 10 | b64encode }}\"}]' -n {{ backup_namespace }}"
 
