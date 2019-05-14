@@ -117,10 +117,6 @@
 - name: "redeploy tutorial-web-app"
   shell: "oc rollout latest dc/tutorial-web-app -n {{ eval_webapp_namespace }}"
 
-- name: "delete keycloak controller"
-  shell: "oc delete -n {{ enmasse_namespace }} dc/keycloak-controller"
-
-
 
 ### SOME PRETTY NASTY PATCHES FROM HERE ON ###
 
