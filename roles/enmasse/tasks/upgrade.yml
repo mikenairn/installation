@@ -72,9 +72,6 @@
   set_fact:
     component_manifests: "{{ component_manifests + [new_enmasse]}}"
 
-- name: "delete web app manifest secret"
-  shell: "oc delete secret manifest -n {{ eval_webapp_namespace }}"
-
 - name: Generate custom manifest
   template:
     src: "manifest.j2"
@@ -82,11 +79,9 @@
 
 - name: Delete secret if it exists
   shell: oc delete secret manifest -n {{webapp_namespace}}
-  when:   manifest_secret.stderr == ""
 
 - name: Create manifest secret
   shell: oc create secret generic manifest --from-file=/tmp/generated_manifest --type=application/json -n {{webapp_namespace}}
-
 
 - name: Generate AuthenticationService
   template:
