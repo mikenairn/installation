@@ -139,7 +139,7 @@
     AUTHENTICATION_SERVICE_KC_IDP_HINT- \
     CONSOLE_OAUTH_DISCOVERY_URL=https://openshift.default.svc/.well-known/oauth-authorization-server \
     CONSOLE_OAUTH_SCOPE='user:full' \
-    CONSOLE_LINK='https://console-enmasse.{{ apps_redirect_uri }}'
+    CONSOLE_LINK='https://console-enmasse.{{ hostvars['EVAL_VARS']['eval_app_host'] }}'
 
 - name: "patch console deploys to read env vars from secret"
   shell: |
