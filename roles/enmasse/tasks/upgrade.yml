@@ -119,3 +119,80 @@
 
 - name: "delete keycloak controller"
   shell: "oc delete -n {{ enmasse_namespace }} dc/keycloak-controller"
+
+
+
+### SOME PRETTY NASTY PATCHES FROM HERE ON ###
+
+- name: "update standard-controller env vars"
+  shell: |
+    oc set env -n {{ enmasse_namespace }} --overwrite deployment --selector="infraType=standard" --container="standard-controller" \
+    TEMPLATE_DIR=/opt/templates \
+    ENABLE_EVENT_LOGGER=true \
+    BROKER_IMAGE=registry.redhat.io/amq-broker-7/amq-broker-72-openshift:latest \
+    BROKER_PLUGIN_NAME=registry.redhat.io/amq7/amq-online-1-broker-plugin:1.1 \
+    TOPIC_FORWARDER_IMAGE=registry.redhat.io/amq7/amq-online-1-topic-forwarder:1.1 \
+    Always=Always
+
+## ENV VARS ENDING IN A - ARE DELETED
+- name: "update agent env vars"
+  shell: |
+    oc set env -n {{ enmasse_namespace }} --overwrite deployment --selector="infraType=standard" --container="agent" \
+    AUTHENTICATION_SERVICE_OAUTH_URL- \
+    AUTHENTICATION_SERVICE_KC_IDP_HINT- \
+    CONSOLE_OAUTH_DISCOVERY_URL=https://openshift.default.svc/.well-known/oauth-authorization-server \
+    CONSOLE_OAUTH_SCOPE='user:full' \
+    CONSOLE_LINK='https://console-enmasse.{{ apps_redirect_uri }}'
+
+- name: "patch console deploys to read env vars from secret"
+  shell: |
+    oc patch -n {{ enmasse_namespace }} deployment --selector="infraType=standard" --type=json --patch '[
+      {
+        "op": "add",
+        "path": "/spec/template/spec/containers/1/env/-",
+        "value": {
+          "name": "CONSOLE_OAUTH_CLIENT_ID",
+          "valueFrom": {
+            "secretKeyRef": {"key": "client-id", "name": "console-oauth"}
+          }
+        }
+      },
+      {
+        "op": "add",
+        "path": "/spec/template/spec/containers/1/env/-",
+        "value": {
+          "name": "CONSOLE_OAUTH_CLIENT_SECRET",
+          "valueFrom": {
+            "secretKeyRef": {"key": "client-secret", "name": "console-oauth"}
+          }
+        }
+      },
+        {
+          "op": "add",
+          "path": "/spec/template/spec/containers/1/env/-",
+          "value": {
+            "name": "SSO_COOKIE_SECRET",
+            "valueFrom": {
+              "secretKeyRef": {"key": "cookie-secret", "name": "console-sso-cookie-secret"}
+            }
+          }
+        }
+    ]'
+
+- name: "patch console deployments"
+  shell: |
+    oc patch -n {{ enmasse_namespace }} deployment --selector="infraType=standard" --type=json --patch '[
+      {
+        "op": "remove",
+        "path": "/spec/template/spec/containers/0/volumeMounts/1"
+      },
+      {
+        "op": "replace",
+        "path": "/spec/template/spec/containers/1/image",
+        "value": "registry.redhat.io/amq7/amq-online-1-agent:1.1"
+      },
+      {
+        "op": "remove",
+        "path": "/spec/template/spec/containers/1/volumes/5"
+      },
+    ]'
