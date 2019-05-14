@@ -60,7 +60,7 @@
       components: []
     new_enmasse:
       name: "enmasse"
-      version: "1.1.0.GA"
+      version: "{{ enmasse_version }}"
       host: "{{enmasse_rest_route}}"
 
 - name: "remove old enmasse from new manifest"
