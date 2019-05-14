@@ -47,10 +47,11 @@
 
 - set_fact:
     enmasse_rest_route: "{{ hostvars['EVAL_VARS']['openshift_master_url'] }}/apis/enmasse.io"
-      - name: Retrieve secret for webapp manifest
-        shell: oc get secret manifest -n {{ eval_webapp_namespace }} -o jsonpath="{$.data.generated_manifest}"
-        register: webapp_secret
-        failed_when: webapp_secret.stderr != ""
+
+- name: Retrieve secret for webapp manifest
+  shell: oc get secret manifest -n {{ eval_webapp_namespace }} -o jsonpath="{$.data.generated_manifest}"
+  register: webapp_secret
+  failed_when: webapp_secret.stderr != ""
 
 - set_fact:
     webapp_manifest: "{{ webapp_secret.stdout | b64decode }}"
