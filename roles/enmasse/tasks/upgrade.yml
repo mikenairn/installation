@@ -78,7 +78,7 @@
     dest: /tmp/generated_manifest
 
 - name: Delete secret if it exists
-  shell: oc delete secret manifest -n {{webapp_namespace}}
+  shell: oc delete secret manifest -n {{ eval_webapp_namespace }}
 
 - name: Create manifest secret
   shell: oc create secret generic manifest --from-file=/tmp/generated_manifest --type=application/json -n {{webapp_namespace}}
