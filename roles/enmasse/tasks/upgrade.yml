@@ -85,7 +85,7 @@
 
 - name: "recreate web app secret"
   shell: |
-    oc create secret generic manifest -n {{ eval_webapp_namespace }} --from-literal=generated_manifest='{{new_manifest | to_json | regex_replace('"', '\\"') }}'
+    oc create secret generic manifest -n {{ eval_webapp_namespace }} --from-literal=generated_manifest='{{new_manifest | to_json | regex_replace(\'"\', \'\\"\') }}'
 
 
 - name: Generate AuthenticationService
