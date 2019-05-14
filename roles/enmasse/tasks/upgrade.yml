@@ -82,7 +82,7 @@
   shell: "oc delete secret manifest -n {{ eval_webapp_namespace }}"
 
 - name: "recreate web app secret"
-  shell: oc create secret generic manifest -n {{ eval_webapp_namespace }} --from-literal=generated_manifest="{{new_manifest | to_json | to_json}}"
+  shell: oc create secret generic manifest -n {{ eval_webapp_namespace }} --from-literal=generated_manifest="{{new_manifest}}"
 
 
 - name: Generate AuthenticationService
