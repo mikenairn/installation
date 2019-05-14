@@ -58,6 +58,7 @@
     webapp_manifest: "{{ webapp_secret.stdout | b64decode }}"
     new_manifest:
       components: []
+      version: "{{ integreatly_version }}"
     new_enmasse:
       name: "enmasse"
       version: "{{ enmasse_version }}"
@@ -79,7 +80,7 @@
   shell: "oc delete secret manifest -n {{ eval_webapp_namespace }}"
 
 - name: "recreate web app secret"
-  shell: oc create secret generic manifest -n {{ eval_webapp_namespace }} --from-literal=components="{{new_manifest.components | to_json}}" --from-literal=version="{{ integreatly_version }}"
+  shell: oc create secret generic manifest -n {{ eval_webapp_namespace }} --from-literal=generated_manifest="{{new_manifest | to_json}}"
 
 
 - name: Generate AuthenticationService
