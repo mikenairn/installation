@@ -75,7 +75,7 @@
 
 - name: "Create EnMasse AuthenticationService"
   shell: oc create -f /tmp/authenticationservice.yml
-  register: authetnicationservice_exists
+  register: authenticationservice_exists
   failed_when: authetnicationservice_exists.stderr != '' and 'AlreadyExists' not in authetnicationservice_exists.stderr
 
 - name: "Verify EnMasse deployment succeeded"
