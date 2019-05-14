@@ -74,8 +74,11 @@
     new_manifest:
       components: "{{ new_manifest.components + [new_enmasse]}}"
 
-- name: "update web app secret"
-  shell: oc create secret generic manifest -n {{ eval_webapp_namespace }} --from-literal=components="{{new_manifest.components | to_json}}" --dry-run -o yaml | oc replace -n {{ eval_webapp_namespace }} -f -
+- name: "delete web app manifest secret"
+  shell: "oc delete secret manifest -n {{ eval_webapp_namespace }}"
+
+- name: "recreate web app secret"
+  shell: oc create secret generic manifest -n {{ eval_webapp_namespace }} --from-literal=components="{{new_manifest.components | to_json}}"
 
 
 - name: "Verify EnMasse deployment succeeded"
