@@ -143,27 +143,28 @@
 
 - name: "patch console deploys to read env vars from secret"
   shell: |
-    oc patch -n {{ enmasse_namespace }} deployment --selector="infraType=standard" --type=json --patch '[
-      {
-        "op": "add",
-        "path": "/spec/template/spec/containers/1/env/-",
-        "value": {
-          "name": "CONSOLE_OAUTH_CLIENT_ID",
-          "valueFrom": {
-            "secretKeyRef": {"key": "client-id", "name": "console-oauth"}
+    for d in $(oc get deployments -n {{ enmasse_namespace }} --selector="infraType=standard" | grep -v "NAME" | awk '{print $1}'); do
+      oc patch -n {{ enmasse_namespace }} deployment $d --type=json --patch '[
+        {
+          "op": "add",
+          "path": "/spec/template/spec/containers/1/env/-",
+          "value": {
+            "name": "CONSOLE_OAUTH_CLIENT_ID",
+            "valueFrom": {
+              "secretKeyRef": {"key": "client-id", "name": "console-oauth"}
+            }
           }
-        }
-      },
-      {
-        "op": "add",
-        "path": "/spec/template/spec/containers/1/env/-",
-        "value": {
-          "name": "CONSOLE_OAUTH_CLIENT_SECRET",
-          "valueFrom": {
-            "secretKeyRef": {"key": "client-secret", "name": "console-oauth"}
+        },
+        {
+          "op": "add",
+          "path": "/spec/template/spec/containers/1/env/-",
+          "value": {
+            "name": "CONSOLE_OAUTH_CLIENT_SECRET",
+            "valueFrom": {
+              "secretKeyRef": {"key": "client-secret", "name": "console-oauth"}
+            }
           }
-        }
-      },
+        },
         {
           "op": "add",
           "path": "/spec/template/spec/containers/1/env/-",
@@ -174,7 +175,8 @@
             }
           }
         }
-    ]'
+      ]';
+    done;
 
 - name: "patch console deployments"
   shell: |
