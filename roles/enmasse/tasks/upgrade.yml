@@ -192,7 +192,7 @@
         },
         {
           "op": "remove",
-          "path": "/spec/template/spec/containers/1/volumes/4"
+          "path": "/spec/template/spec/volumes/4"
         }
       ]';
     done;
