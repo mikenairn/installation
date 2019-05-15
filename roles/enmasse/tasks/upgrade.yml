@@ -228,11 +228,109 @@
       done;
     done;
 
-- name: "update dashboard URLs"
+- name: "create policies for console qdrouter statefulsets"
   shell: |
-    for ns in $(oc get namespaces | grep -v "NAME" | awk '{print $1}'); do
-      for si in $(oc get serviceinstances -n $ns 2>&1 | grep amq-online | awk '{print $1}'); do
-        echo "ns: " $ns;
-        echo "si: " $si;
-      done;
+    for router_hash in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do
+      oc create configmap -n {{ enmasse_namespace }} qdrouterd-policies.${router_hash} --from-literal="policies.json=[]"
+    done;
+
+- name: "delete amqps-probe port from qdrouterd statefulsets"
+  shell: |
+    for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
+      index=$(oc get statefulset ss -n {{ enmasse_namespace }} -o jsonpath='{range $.spec.template.spec.containers[0].ports[*]}{.name}{"\n"}{end}' | grep amps-probe -B15 | grep -v amqps-probe | wc -l)
+      oc patch -n {{ enmasse_namespace }} statefulset $ss --type=json --patch '[
+        {
+          "op": "remove",
+          "path": "spec/template/spec/containers/0/ports/${index}"
+        }
+      ]';
+    done;
+
+  name: "patch qdrouterd statefulsets"
+  shell: |
+    for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
+      hash=$(echo $ss | cut -f2 -d-);
+      oc patch -n {{ enmasse_namespace }} statefulset $ss --type=json --patch '[
+        {
+          "op": "replace",
+          "path": "spec/template/spec/volumes/-",
+          "value": {
+            "name": qdrouterd-policies",
+            "configMap": {
+              "defaultMode": "420",
+              "name": qdrouterd-policies.${hash}"
+            }
+          }
+        },
+        {
+          "op": "replace",
+          "path": "spec/template/spec/containers/0/image",
+          "value": "registry.redhat.io/amq7/amq-interconnect:1.4"
+        },
+        {
+          "op": "replace",
+          "path": "spec/template/spec/containers/0/livenessProbe",
+          "value": {
+            "httpGet": {
+              "path": "/healthz",
+              "port": "local-http",
+              "scheme": "HTTP"
+            },
+            "initialDelaySeconds": "30",
+            "failureThreshold": "3",
+            "periodSeconds": "10",
+            "successThreshold": "1"
+          }
+        },
+        {
+          "op": "replace",
+          "path": "spec/template/spec/containers/0/readinessProbe",
+          "value": {
+            "httpGet": {
+              "path": "/healthz",
+              "port": "http",
+              "scheme": "HTTP"
+            },
+            "initialDelaySeconds": "60",
+            "periodSeconds": "10",
+            "successThreshold": "1",
+            "timeoutSeconds": "1"
+          }
+        },
+        {
+          "op": "add",
+          "path": "spec/template/spec/containers/0/volumeMounts",
+          "value": {
+            "mountPath": "/etc/qpid-dispatch/policies",
+            "name": "qdrouterd-policies"
+          }
+        },
+        {
+          "op": "add",
+          "path": "spec/template/spec/containers/0/ports/-",
+          "value": {
+            "name": "local",
+            "containerPort": "7777",
+            "protocol": "TCP"
+          }
+        },
+        {
+          "op": "add",
+          "path": "spec/template/spec/containers/0/ports/-",
+          "value": {
+            "name": "local-http",
+            "containerPort": "7770",
+            "protocol": "TCP"
+          }
+        },
+        {
+          "op": "add",
+          "path": "spec/template/spec/containers/0/ports/-",
+          "value": {
+            "name": "http",
+            "containerPort": "8080",
+            "protocol": "TCP"
+          }
+        }
+      ]'
     done;
