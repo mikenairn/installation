@@ -118,7 +118,6 @@
 - name: "redeploy tutorial-web-app"
   shell: "oc rollout latest dc/tutorial-web-app -n {{ eval_webapp_namespace }}"
 
-
 ### SOME PRETTY NASTY PATCHES FROM HERE ON ###
 
 - name: "update standard-controller env vars"
