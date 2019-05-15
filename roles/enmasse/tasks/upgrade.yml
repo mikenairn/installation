@@ -187,12 +187,29 @@
         },
         {
           "op": "replace",
+          "path": "/spec/template/spec/containers/0/image",
+          "value": "registry.redhat.io/amq7/amq-online-1-standard-controller:1.1"
+        },
+        {
+          "op": "replace",
           "path": "/spec/template/spec/containers/1/image",
           "value": "registry.redhat.io/amq7/amq-online-1-agent:1.1"
         },
         {
           "op": "remove",
           "path": "/spec/template/spec/volumes/4"
+        },
+        {
+          "op": "add",
+          "path": "/spec/template/spec/volumes/-",
+          "value": {
+            "name": "sso-cookie-secret",
+            "secret": {
+              "defaultMode": "420",
+              "optional": true,
+              "secretName": "console-sso-cookie-secret"
+            }
+          }
         }
       ]';
     done;
