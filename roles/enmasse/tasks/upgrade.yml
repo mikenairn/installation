@@ -178,18 +178,29 @@
 
 - name: "patch console deployments"
   shell: |
-    oc patch -n {{ enmasse_namespace }} deployment --selector="infraType=standard" --type=json --patch '[
-      {
-        "op": "remove",
-        "path": "/spec/template/spec/containers/0/volumeMounts/1"
-      },
-      {
-        "op": "replace",
-        "path": "/spec/template/spec/containers/1/image",
-        "value": "registry.redhat.io/amq7/amq-online-1-agent:1.1"
-      },
-      {
-        "op": "remove",
-        "path": "/spec/template/spec/containers/1/volumes/5"
-      }
-    ]'
+    for d in $(oc get deployments -n {{ enmasse_namespace }} --selector="infraType=standard" | grep -v "NAME" | awk '{print $1}'); do
+      oc patch -n {{ enmasse_namespace }} deployment $d --type=json --patch '[
+        {
+          "op": "remove",
+          "path": "/spec/template/spec/containers/0/volumeMounts/1"
+        },
+        {
+          "op": "replace",
+          "path": "/spec/template/spec/containers/1/image",
+          "value": "registry.redhat.io/amq7/amq-online-1-agent:1.1"
+        },
+        {
+          "op": "remove",
+          "path": "/spec/template/spec/containers/1/volumes/5"
+        }
+      ]';
+    done;
+
+- name: "update dashboard URLs"
+  shell: |
+    for ns in $(oc get namespaces | grep -v "NAME" | awk '{print $1}'); do
+      for si in $(oc get serviceinstances -n $ns 2>&1 | grep amq-online | awk '{print $1}'); do
+        echo "ns: " $ns;
+        echo "si: " $si;
+      done;
+    done;
