@@ -214,6 +214,20 @@
       ]';
     done;
 
+- name: "update namespace env vars in console deployments"
+  shell: |
+    for ns in $(oc get namespaces | grep -v "NAME" | awk '{print $1}'); do
+      for si in $(oc get serviceinstances -n $ns 2>&1 | grep "amq-online" | awk '{print $1}'); do
+        address=$(oc get serviceinstance $si -n $ns -o jsonpath="{$.status.dashboardURL}" | cut -f5 -d"/");
+        for d in $(oc get deployments -n {{ enmasse_namespace }} | grep "admin\." | awk '{print $1}'); do
+          found=$(oc get deployment $d -n {{ enmasse_namespace }} -o=jsonpath="{$.spec.template.spec.containers[0].env}" | grep $address | wc -l);
+          if [ $found == "1" ]; then
+            oc set env --overwrite deployment $d -n {{ enmasse_namespace }} ADDRESS_SPACE_NAMESPACE=$ns
+          fi;
+        done;
+      done;
+    done;
+
 - name: "update dashboard URLs"
   shell: |
     for ns in $(oc get namespaces | grep -v "NAME" | awk '{print $1}'); do
