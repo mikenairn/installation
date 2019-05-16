@@ -1,6 +1,4 @@
 ---
-- debug: msg="Using EnMasse git URL - {{ enmasse_git_url }}"
-
 - name: "Retrieve EnMasse {{ enmasse_version }} artifact"
   git:
     repo: "{{ enmasse_git_url }}"
@@ -235,11 +233,11 @@
     done;
 
 - name: "get qrouterd hashes"
-  shell: "for router_hash in $(oc get -n enmasse statefulsets | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do echo $router_hash; done"
+  shell: for router_hash in $(oc get -n enmasse statefulsets | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do echo $router_hash; done
   register: qrouterd_hashes
 
 - name: "upgrade qrouterd-config configmaps"
-  include_task: "_upgrade_qrouterd_configmap.yml"
+  include_task: _upgrade_qrouterd_configmap.yml
   vars:
     qrouterd_hash: "{{item}}"
   with_items: qrouterd_hashes.stdout_lines
