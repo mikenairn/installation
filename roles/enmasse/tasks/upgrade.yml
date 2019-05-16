@@ -47,40 +47,6 @@
 - set_fact:
     enmasse_rest_route: "{{ hostvars['EVAL_VARS']['openshift_master_url'] }}/apis/enmasse.io"
 
-- name: Retrieve secret for webapp manifest
-  shell: oc get secret manifest -n {{ eval_webapp_namespace }} -o jsonpath="{$.data.generated_manifest}"
-  register: webapp_secret
-  failed_when: webapp_secret.stderr != ""
-
-- set_fact:
-    webapp_manifest: "{{ webapp_secret.stdout | b64decode }}"
-    component_manifests: []
-    new_enmasse:
-      name: "enmasse"
-      version: "{{ enmasse_version }}"
-      host: "{{enmasse_rest_route}}"
-
-- name: "remove old enmasse from new manifest"
-  set_fact:
-    component_manifests: "{{ component_manifests + [item] }}"
-  with_items: "{{webapp_manifest.components}}"
-  when: item.name != "enmasse"
-
-- name: "add new enmasse to new manifest"
-  set_fact:
-    component_manifests: "{{ component_manifests + [new_enmasse]}}"
-
-- name: Generate custom manifest
-  template:
-    src: "manifest.j2"
-    dest: /tmp/generated_manifest
-
-- name: Delete secret if it exists
-  shell: oc delete secret manifest -n {{ eval_webapp_namespace }}
-
-- name: Create manifest secret
-  shell: oc create secret generic manifest --from-file=/tmp/generated_manifest --type=application/json -n {{ eval_webapp_namespace }}
-
 - name: Generate AuthenticationService
   template:
     src: authenticationservice.yml.j2
