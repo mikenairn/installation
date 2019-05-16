@@ -349,3 +349,10 @@
     for pod in $(oc get pods -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
       oc delete pod ${pod};
     done;
+
+- name: "wait for qdrouterd pods to come up"
+  shell: oc get statefulsets | grep qdrouterd | awk '{print $2}' | grep -v 2 | wc -l
+  register: wait_for_qdrouterd
+  retries: 60
+  delay: 5
+  until: wait_for_qdrouterd.stdout == ""
