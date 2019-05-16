@@ -240,8 +240,8 @@
 
 - name: "upgrade qrouterd-config configmaps"
   include_task: "_upgrade_qrouterd_configmap.yml"
-    vars:
-      qrouterd_hash: "{{item}}"
+  vars:
+    qrouterd_hash: "{{item}}"
   with_items: qrouterd_hashes.stdout_lines
 
 - name: "delete amqps-probe port from qdrouterd statefulsets"
