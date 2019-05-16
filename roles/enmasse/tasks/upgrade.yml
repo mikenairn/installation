@@ -254,92 +254,98 @@
 #        }
 #      ]';
 #    done;
+#
+#- name: "patch qdrouterd statefulsets"
+#  shell: |
+#    for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
+#      hash=$(echo ${ss} | cut -f2 -d-);
+#      oc patch -n {{ enmasse_namespace }} statefulset ${ss} --type=json --patch '[
+#        {
+#          "op": "add",
+#          "path": "/spec/template/spec/volumes/-",
+#          "value": {
+#            "name": "qdrouterd-policies",
+#            "configMap": {
+#              "defaultMode": "420",
+#              "name": "qdrouterd-policies.'${hash}'"
+#            }
+#          }
+#        },
+#        {
+#          "op": "replace",
+#          "path": "/spec/template/spec/containers/0/image",
+#          "value": "registry.redhat.io/amq7/amq-interconnect:1.4"
+#        },
+#        {
+#          "op": "replace",
+#          "path": "/spec/template/spec/containers/0/livenessProbe",
+#          "value": {
+#            "httpGet": {
+#              "path": "/healthz",
+#              "port": "local-http",
+#              "scheme": "HTTP"
+#            },
+#            "initialDelaySeconds": "30",
+#            "failureThreshold": "3",
+#            "periodSeconds": "10",
+#            "successThreshold": "1"
+#          }
+#        },
+#        {
+#          "op": "replace",
+#          "path": "/spec/template/spec/containers/0/readinessProbe",
+#          "value": {
+#            "httpGet": {
+#              "path": "/healthz",
+#              "port": "http",
+#              "scheme": "HTTP"
+#            },
+#            "initialDelaySeconds": "60",
+#            "periodSeconds": "10",
+#            "successThreshold": "1",
+#            "timeoutSeconds": "1"
+#          }
+#        },
+#        {
+#          "op": "add",
+#          "path": "/spec/template/spec/containers/0/volumeMounts/-",
+#          "value": {
+#            "mountPath": "/etc/qpid-dispatch/policies",
+#            "name": "qdrouterd-policies"
+#          }
+#        },
+#        {
+#          "op": "add",
+#          "path": "/spec/template/spec/containers/0/ports/-",
+#          "value": {
+#            "name": "local",
+#            "containerPort": "7777",
+#            "protocol": "TCP"
+#          }
+#        },
+#        {
+#          "op": "add",
+#          "path": "/spec/template/spec/containers/0/ports/-",
+#          "value": {
+#            "name": "local-http",
+#            "containerPort": "7770",
+#            "protocol": "TCP"
+#          }
+#        },
+#        {
+#          "op": "add",
+#          "path": "/spec/template/spec/containers/0/ports/-",
+#          "value": {
+#            "name": "http",
+#            "containerPort": "8080",
+#            "protocol": "TCP"
+#          }
+#        }
+#      ]'
+#    done;
 
-- name: "patch qdrouterd statefulsets"
+- name: "delete old qdrouterd pods"
   shell: |
-    for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
-      hash=$(echo ${ss} | cut -f2 -d-);
-      oc patch -n {{ enmasse_namespace }} statefulset ${ss} --type=json --patch '[
-        {
-          "op": "add",
-          "path": "/spec/template/spec/volumes/-",
-          "value": {
-            "name": "qdrouterd-policies",
-            "configMap": {
-              "defaultMode": "420",
-              "name": "qdrouterd-policies.'${hash}'"
-            }
-          }
-        },
-        {
-          "op": "replace",
-          "path": "/spec/template/spec/containers/0/image",
-          "value": "registry.redhat.io/amq7/amq-interconnect:1.4"
-        },
-        {
-          "op": "replace",
-          "path": "/spec/template/spec/containers/0/livenessProbe",
-          "value": {
-            "httpGet": {
-              "path": "/healthz",
-              "port": "local-http",
-              "scheme": "HTTP"
-            },
-            "initialDelaySeconds": "30",
-            "failureThreshold": "3",
-            "periodSeconds": "10",
-            "successThreshold": "1"
-          }
-        },
-        {
-          "op": "replace",
-          "path": "/spec/template/spec/containers/0/readinessProbe",
-          "value": {
-            "httpGet": {
-              "path": "/healthz",
-              "port": "http",
-              "scheme": "HTTP"
-            },
-            "initialDelaySeconds": "60",
-            "periodSeconds": "10",
-            "successThreshold": "1",
-            "timeoutSeconds": "1"
-          }
-        },
-        {
-          "op": "add",
-          "path": "/spec/template/spec/containers/0/volumeMounts/-",
-          "value": {
-            "mountPath": "/etc/qpid-dispatch/policies",
-            "name": "qdrouterd-policies"
-          }
-        },
-        {
-          "op": "add",
-          "path": "/spec/template/spec/containers/0/ports/-",
-          "value": {
-            "name": "local",
-            "containerPort": "7777",
-            "protocol": "TCP"
-          }
-        },
-        {
-          "op": "add",
-          "path": "/spec/template/spec/containers/0/ports/-",
-          "value": {
-            "name": "local-http",
-            "containerPort": "7770",
-            "protocol": "TCP"
-          }
-        },
-        {
-          "op": "add",
-          "path": "/spec/template/spec/containers/0/ports/-",
-          "value": {
-            "name": "http",
-            "containerPort": "8080",
-            "protocol": "TCP"
-          }
-        }
-      ]'
+    for pod in $(oc get pods -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
+      oc delete pod ${pod};
     done;
