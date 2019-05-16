@@ -1,0 +1,30 @@
+---
+- name: "get realm"
+  shell: oc get configmap -n {{ enmasse_namespace }} qdrouterd-config.{{router_hash}} -o yaml | grep saslInitHostname | awk '{print $2}'
+  register: get_realm
+
+- set_fact:
+    realm: get_realm.stdout
+
+- name: "get ragent"
+  shell: oc get configmap -n {{ enmasse_namespace }} qdrouterd-config.{{router_hash}} -o yaml | grep ragent | awk '{print $2}'
+  register: get_ragent
+
+- set_fact:
+    ragent: get_ragent.stdout
+
+- name: "Generate new router config file"
+  template:
+    src: "1.4.qrouterd-config.j2"
+    dest: "/tmp/qrouterd.conf"
+
+- name: "Delete old configmap"
+  shell: "oc delete configmap -n {{ enmasse_namespace }} qdrouterd-config.{{router_hash}}"
+
+- name: "Recreate configmap"
+  shell: "oc create configmap -n {{ enmasse_namespace }} qdrouterd-config.{{router_hash}} --from-file=/tmp/qdrouterd.conf"
+
+- name: "Delete tmp file"
+  file:
+    state: absent
+    path: "/tmp/qdrouterd.conf"

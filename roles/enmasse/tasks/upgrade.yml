@@ -234,6 +234,14 @@
       oc create configmap -n {{ enmasse_namespace }} qdrouterd-policies.${router_hash} --from-literal="policies.json=[]"
     done;
 
+- name: "get qrouterd hashes"
+  shell: "for router_hash in $(oc get -n enmasse statefulsets | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do echo $router_hash; done"
+  register: qrouterd_hashes
+
+- name: "upgrade qrouterd-config configmaps"
+  include_task: "_upgrade_qrouterd_configmap.yml qrouterd_hash={{item}}"
+  with_items: qrouterd_hashes.stdout_lines
+
 - name: "delete amqps-probe port from qdrouterd statefulsets"
   shell: |
     for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
