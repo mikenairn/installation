@@ -238,7 +238,7 @@
   register: qrouterd_hashes
 
 - name: "upgrade qrouterd-config configmaps"
-  include_task: _upgrade_qrouterd_configmap.yml
+  include_tasks: _upgrade_qrouterd_configmap.yml
   vars:
     qrouterd_hash: "{{item}}"
   with_items: qrouterd_hashes.stdout_lines
