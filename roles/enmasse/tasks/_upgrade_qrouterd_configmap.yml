@@ -4,19 +4,19 @@
   register: get_realm
 
 - set_fact:
-    realm: get_realm.stdout
+    realm: "{{ get_realm.stdout }}"
 
 - name: "get ragent"
   shell: oc get configmap -n {{ enmasse_namespace }} qdrouterd-config.{{router_hash}} -o yaml | grep ragent | awk '{print $2}'
   register: get_ragent
 
 - set_fact:
-    ragent: get_ragent.stdout
+    ragent: "{{get_ragent.stdout}}"
 
 - name: "Generate new router config file"
   template:
     src: "1.4.qrouterd-config.j2"
-    dest: "/tmp/qrouterd.conf"
+    dest: "/tmp/qdrouterd.conf"
 
 - name: "Delete old configmap"
   shell: "oc delete configmap -n {{ enmasse_namespace }} qdrouterd-config.{{router_hash}}"
