@@ -233,7 +233,8 @@
     done;
 
 - name: "get qrouterd hashes"
-  shell: for router_hash in $(oc get -n enmasse statefulsets | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do echo $router_hash; done
+  shell: |
+    for router_hash in $(oc get -n enmasse statefulsets | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do echo $router_hash; done
   register: qrouterd_hashes
 
 - name: "upgrade qrouterd-config configmaps"
@@ -254,7 +255,7 @@
       ]';
     done;
 
-  name: "patch qdrouterd statefulsets"
+- name: "patch qdrouterd statefulsets"
   shell: |
     for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
       hash=$(echo $ss | cut -f2 -d-);
