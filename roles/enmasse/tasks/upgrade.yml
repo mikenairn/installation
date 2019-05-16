@@ -243,17 +243,17 @@
     router_hash: "{{item}}"
   with_items: "{{qrouterd_hashes.stdout_lines}}"
 
-- name: "delete amqps-probe port from qdrouterd statefulsets"
-  shell: |
-    for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
-      index=$(oc get statefulset ss -n {{ enmasse_namespace }} -o jsonpath='{range $.spec.template.spec.containers[0].ports[*]}{.name}{"\n"}{end}' | grep amps-probe -B15 | grep -v amqps-probe | wc -l)
-      oc patch -n {{ enmasse_namespace }} statefulset $ss --type=json --patch '[
-        {
-          "op": "remove",
-          "path": "spec/template/spec/containers/0/ports/${index}"
-        }
-      ]';
-    done;
+#- name: "delete amqps-probe port from qdrouterd statefulsets"
+#  shell: |
+#    for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
+#      index=$(oc get statefulset ss -n {{ enmasse_namespace }} -o jsonpath='{range $.spec.template.spec.containers[0].ports[*]}{.name}{"\n"}{end}' | grep amps-probe -B15 | grep -v amqps-probe | wc -l)
+#      oc patch -n {{ enmasse_namespace }} statefulset $ss --type=json --patch '[
+#        {
+#          "op": "remove",
+#          "path": "spec/template/spec/containers/0/ports/${index}"
+#        }
+#      ]';
+#    done;
 
 - name: "patch qdrouterd statefulsets"
   shell: |
