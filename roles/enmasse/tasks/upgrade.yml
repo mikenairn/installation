@@ -1,348 +1,348 @@
 ---
-#- name: "Retrieve EnMasse {{ enmasse_version }} artifact"
-#  git:
-#    repo: "{{ enmasse_git_url }}"
-#    dest: /tmp/enmasse-{{ enmasse_version }}
-#    version: "{{ enmasse_version }}"
-#    force: true
-#
-#- name: Ensure tmp dir exists
-#  file:
-#    path: /tmp/enmasse-{{ enmasse_version }}
-#    state: directory
-#
-#- set_fact:
-#    enmasse_playbook_location: enmasse-"{{ enmasse_version }}"/templates/ansible/playbooks/openshift/deploy_all.yml
-#    enmasse_inventory_path: /tmp/enmasse-{{ enmasse_version }}/templates/ansible/inventory/
-#    enmasse_authentication_services: []
-#
-#- name: Generate EnMasse inventory hosts file
-#  template:
-#    src: enmasse_hosts.j2
-#    dest: "{{ enmasse_inventory_path }}/hosts"
-#
-#  #hack to work around oc new-app failing when a ns begins with openshift- the ns will begin with openshift- in OSD so that it is hidden from the end user
-#- name: Adjust project check role when using openshift prefix
-#  template:
-#    src: "project_task.yml"
-#    dest: /tmp/enmasse-{{ enmasse_version }}/templates/ansible/roles/project/tasks/main.yml
-#    force: yes
-#  when: ns_prefix != ""
-#
-#- name: "Provision EnMasse {{ enmasse_version }}"
-#  shell: ansible-playbook -i {{ enmasse_inventory_path }}/hosts /tmp/{{enmasse_playbook_location}}
-#  args:
-#    chdir: "../"
-#
-#- name: Clean up EnMasse artifacts
-#  file:
-#    path: "{{ item }}"
-#    state: absent
-#  with_items:
-#    - /tmp/enmasse-{{ enmasse_version }}.tgz
-#    - /tmp/enmasse-{{ enmasse_version }}.zip
-#    - /tmp/enmasse-{{ enmasse_version }}
-#  when: enmasse_clean_artifacts
-#
-#- set_fact:
-#    enmasse_rest_route: "{{ hostvars['EVAL_VARS']['openshift_master_url'] }}/apis/enmasse.io"
-#
-#- name: Retrieve secret for webapp manifest
-#  shell: oc get secret manifest -n {{ eval_webapp_namespace }} -o jsonpath="{$.data.generated_manifest}"
-#  register: webapp_secret
-#  failed_when: webapp_secret.stderr != ""
-#
-#- set_fact:
-#    webapp_manifest: "{{ webapp_secret.stdout | b64decode }}"
-#    component_manifests: []
-#    new_enmasse:
-#      name: "enmasse"
-#      version: "{{ enmasse_version }}"
-#      host: "{{enmasse_rest_route}}"
-#
-#- name: "remove old enmasse from new manifest"
-#  set_fact:
-#    component_manifests: "{{ component_manifests + [item] }}"
-#  with_items: "{{webapp_manifest.components}}"
-#  when: item.name != "enmasse"
-#
-#- name: "add new enmasse to new manifest"
-#  set_fact:
-#    component_manifests: "{{ component_manifests + [new_enmasse]}}"
-#
-#- name: Generate custom manifest
-#  template:
-#    src: "manifest.j2"
-#    dest: /tmp/generated_manifest
-#
-#- name: Delete secret if it exists
-#  shell: oc delete secret manifest -n {{ eval_webapp_namespace }}
-#
-#- name: Create manifest secret
-#  shell: oc create secret generic manifest --from-file=/tmp/generated_manifest --type=application/json -n {{ eval_webapp_namespace }}
-#
-#- name: Generate AuthenticationService
-#  template:
-#    src: authenticationservice.yml.j2
-#    dest: "/tmp/authenticationservice.yml"
-#
-#- name: Generate keycloak admin password
-#  set_fact:
-#    keycloak_admin_password: "{{ lookup('password', '/dev/null length=15 chars=ascii_letters') }}"
-#
-#- name: Create secret with the keycloak credentials
-#  shell: oc create secret generic -n {{ enmasse_namespace }} keycloak-credentials --from-literal=admin.username=admin --from-literal=admin.password={{ keycloak_admin_password }}
-#  register: secret_exists
-#  failed_when: secret_exists.stderr != '' and 'AlreadyExists' not in secret_exists.stderr
-#
-#- name: Label secret
-#  shell: oc label secret keycloak-credentials -n {{ enmasse_namespace }} app=enmasse
-#  when: secret_exists.rc == 0
-#
-#- name: "Create EnMasse AuthenticationService"
-#  shell: oc create -f /tmp/authenticationservice.yml
-#  register: authenticationservice_exists
-#  failed_when: authenticationservice_exists.stderr != '' and 'AlreadyExists' not in authenticationservice_exists.stderr
-#
-#- name: "Verify EnMasse deployment succeeded"
-#  shell: sleep 5; oc get pods --namespace {{ enmasse_namespace }}  |  grep  "deploy"
-#  register: result
-#  until: not result.stdout
-#  retries: 50
-#  delay: 10
-#  failed_when: result.stdout
-#  changed_when: False
-#
-#- name: "redeploy tutorial-web-app"
-#  shell: "oc rollout latest dc/tutorial-web-app -n {{ eval_webapp_namespace }}"
-#
-#### SOME PRETTY NASTY PATCHES FROM HERE ON ###
-#
-#- name: "update standard-controller env vars"
-#  shell: |
-#    oc set env -n {{ enmasse_namespace }} --overwrite deployment --selector="infraType=standard" --containers="standard-controller" \
-#    TEMPLATE_DIR=/opt/templates \
-#    ENABLE_EVENT_LOGGER=true \
-#    BROKER_IMAGE=registry.redhat.io/amq-broker-7/amq-broker-72-openshift:latest \
-#    BROKER_PLUGIN_NAME=registry.redhat.io/amq7/amq-online-1-broker-plugin:1.1 \
-#    TOPIC_FORWARDER_IMAGE=registry.redhat.io/amq7/amq-online-1-topic-forwarder:1.1 \
-#    Always=Always
-#
-### ENV VARS ENDING IN A - ARE DELETED
-#- name: "update agent env vars"
-#  shell: |
-#    oc set env -n {{ enmasse_namespace }} --overwrite deployment --selector="infraType=standard" --containers="agent" \
-#    AUTHENTICATION_SERVICE_OAUTH_URL- \
-#    AUTHENTICATION_SERVICE_KC_IDP_HINT- \
-#    CONSOLE_OAUTH_DISCOVERY_URL=https://openshift.default.svc/.well-known/oauth-authorization-server \
-#    CONSOLE_OAUTH_SCOPE='user:full' \
-#    CONSOLE_LINK='https://console-enmasse.{{ hostvars['EVAL_VARS']['eval_app_host'] }}'
-#
-#- name: "patch console deploys to read env vars from secret"
-#  shell: |
-#    for d in $(oc get deployments -n {{ enmasse_namespace }} --selector="infraType=standard" | grep -v "NAME" | awk '{print $1}'); do
-#      oc patch -n {{ enmasse_namespace }} deployment ${d} --type=json --patch '[
-#        {
-#          "op": "add",
-#          "path": "/spec/template/spec/containers/1/env/-",
-#          "value": {
-#            "name": "CONSOLE_OAUTH_CLIENT_ID",
-#            "valueFrom": {
-#              "secretKeyRef": {"key": "client-id", "name": "console-oauth"}
-#            }
-#          }
-#        },
-#        {
-#          "op": "add",
-#          "path": "/spec/template/spec/containers/1/env/-",
-#          "value": {
-#            "name": "CONSOLE_OAUTH_CLIENT_SECRET",
-#            "valueFrom": {
-#              "secretKeyRef": {"key": "client-secret", "name": "console-oauth"}
-#            }
-#          }
-#        },
-#        {
-#          "op": "add",
-#          "path": "/spec/template/spec/containers/1/env/-",
-#          "value": {
-#            "name": "SSO_COOKIE_SECRET",
-#            "valueFrom": {
-#              "secretKeyRef": {"key": "cookie-secret", "name": "console-sso-cookie-secret"}
-#            }
-#          }
-#        }
-#      ]';
-#    done;
-#
-#- name: "patch console deployments"
-#  shell: |
-#    for d in $(oc get deployments -n {{ enmasse_namespace }} --selector="infraType=standard" | grep -v "NAME" | awk '{print $1}'); do
-#      oc patch -n {{ enmasse_namespace }} deployment ${d} --type=json --patch '[
-#        {
-#          "op": "remove",
-#          "path": "/spec/template/spec/containers/0/volumeMounts/1"
-#        },
-#        {
-#          "op": "replace",
-#          "path": "/spec/template/spec/containers/0/image",
-#          "value": "registry.redhat.io/amq7/amq-online-1-standard-controller:1.1"
-#        },
-#        {
-#          "op": "replace",
-#          "path": "/spec/template/spec/containers/1/image",
-#          "value": "registry.redhat.io/amq7/amq-online-1-agent:1.1"
-#        },
-#        {
-#          "op": "remove",
-#          "path": "/spec/template/spec/volumes/4"
-#        },
-#        {
-#          "op": "add",
-#          "path": "/spec/template/spec/volumes/-",
-#          "value": {
-#            "name": "sso-cookie-secret",
-#            "secret": {
-#              "defaultMode": "420",
-#              "optional": true,
-#              "secretName": "console-sso-cookie-secret"
-#            }
-#          }
-#        }
-#      ]';
-#    done;
-#
-#- name: "update namespace env vars in console deployments"
-#  shell: |
-#    for ns in $(oc get namespaces | grep -v "NAME" | awk '{print $1}'); do
-#      for si in $(oc get serviceinstances -n ${ns} 2>&1 | grep "amq-online" | awk '{print $1}'); do
-#        address=$(oc get serviceinstance ${si} -n ${ns} -o jsonpath="{$.status.dashboardURL}" | cut -f5 -d"/");
-#        for d in $(oc get deployments -n {{ enmasse_namespace }} | grep "admin\." | awk '{print $1}'); do
-#          found=$(oc get deployment ${d} -n {{ enmasse_namespace }} -o=jsonpath="{$.spec.template.spec.containers[0].env}" | grep ${address} | wc -l);
-#          if [ ${found} == "1" ]; then
-#            oc set env --overwrite deployment ${d} -n {{ enmasse_namespace }} ADDRESS_SPACE_NAMESPACE=${ns}
-#          fi;
-#        done;
-#      done;
-#    done;
-#
-#- name: "create policies for console qdrouter statefulsets"
-#  shell: |
-#    for router_hash in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do
-#      oc create configmap -n {{ enmasse_namespace }} qdrouterd-policies.${router_hash} --from-literal="policies.json=[]"
-#    done;
-#
-#- name: "get qrouterd hashes"
-#  shell: |
-#    for router_hash in $(oc get -n enmasse statefulsets | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do echo ${router_hash}; done
-#  register: qrouterd_hashes
-#
-#- name: "upgrade qrouterd-config configmaps"
-#  include_tasks: _upgrade_qrouterd_configmap.yml
-#  vars:
-#    router_hash: "{{item}}"
-#  with_items: "{{qrouterd_hashes.stdout_lines}}"
+- name: "Retrieve EnMasse {{ enmasse_version }} artifact"
+  git:
+    repo: "{{ enmasse_git_url }}"
+    dest: /tmp/enmasse-{{ enmasse_version }}
+    version: "{{ enmasse_version }}"
+    force: true
 
-#- name: "delete amqps-probe port from qdrouterd statefulsets"
-#  shell: |
-#    for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
-#      index=$(oc get statefulset ${ss} -n {{ enmasse_namespace }} -o jsonpath='{range $.spec.template.spec.containers[0].ports[*]}{.name}{"\n"}{end}' | grep amqps-probe -B15 | grep -v amqps-probe | wc -l)
-#      oc patch -n {{ enmasse_namespace }} statefulset $ss --type=json --patch '[
-#        {
-#          "op": "remove",
-#          "path": "/spec/template/spec/containers/0/ports/'${index}'"
-#        }
-#      ]';
-#    done;
-#
-#- name: "patch qdrouterd statefulsets"
-#  shell: |
-#    for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
-#      hash=$(echo ${ss} | cut -f2 -d-);
-#      oc patch -n {{ enmasse_namespace }} statefulset ${ss} --type=json --patch '[
-#        {
-#          "op": "add",
-#          "path": "/spec/template/spec/volumes/-",
-#          "value": {
-#            "name": "qdrouterd-policies",
-#            "configMap": {
-#              "defaultMode": "420",
-#              "name": "qdrouterd-policies.'${hash}'"
-#            }
-#          }
-#        },
-#        {
-#          "op": "replace",
-#          "path": "/spec/template/spec/containers/0/image",
-#          "value": "registry.redhat.io/amq7/amq-interconnect:1.4"
-#        },
-#        {
-#          "op": "replace",
-#          "path": "/spec/template/spec/containers/0/livenessProbe",
-#          "value": {
-#            "httpGet": {
-#              "path": "/healthz",
-#              "port": "local-http",
-#              "scheme": "HTTP"
-#            },
-#            "initialDelaySeconds": "30",
-#            "failureThreshold": "3",
-#            "periodSeconds": "10",
-#            "successThreshold": "1"
-#          }
-#        },
-#        {
-#          "op": "replace",
-#          "path": "/spec/template/spec/containers/0/readinessProbe",
-#          "value": {
-#            "httpGet": {
-#              "path": "/healthz",
-#              "port": "http",
-#              "scheme": "HTTP"
-#            },
-#            "initialDelaySeconds": "60",
-#            "periodSeconds": "10",
-#            "successThreshold": "1",
-#            "timeoutSeconds": "1"
-#          }
-#        },
-#        {
-#          "op": "add",
-#          "path": "/spec/template/spec/containers/0/volumeMounts/-",
-#          "value": {
-#            "mountPath": "/etc/qpid-dispatch/policies",
-#            "name": "qdrouterd-policies"
-#          }
-#        },
-#        {
-#          "op": "add",
-#          "path": "/spec/template/spec/containers/0/ports/-",
-#          "value": {
-#            "name": "local",
-#            "containerPort": "7777",
-#            "protocol": "TCP"
-#          }
-#        },
-#        {
-#          "op": "add",
-#          "path": "/spec/template/spec/containers/0/ports/-",
-#          "value": {
-#            "name": "local-http",
-#            "containerPort": "7770",
-#            "protocol": "TCP"
-#          }
-#        },
-#        {
-#          "op": "add",
-#          "path": "/spec/template/spec/containers/0/ports/-",
-#          "value": {
-#            "name": "http",
-#            "containerPort": "8080",
-#            "protocol": "TCP"
-#          }
-#        }
-#      ]'
-#    done;
+- name: Ensure tmp dir exists
+  file:
+    path: /tmp/enmasse-{{ enmasse_version }}
+    state: directory
+
+- set_fact:
+    enmasse_playbook_location: enmasse-"{{ enmasse_version }}"/templates/ansible/playbooks/openshift/deploy_all.yml
+    enmasse_inventory_path: /tmp/enmasse-{{ enmasse_version }}/templates/ansible/inventory/
+    enmasse_authentication_services: []
+
+- name: Generate EnMasse inventory hosts file
+  template:
+    src: enmasse_hosts.j2
+    dest: "{{ enmasse_inventory_path }}/hosts"
+
+  #hack to work around oc new-app failing when a ns begins with openshift- the ns will begin with openshift- in OSD so that it is hidden from the end user
+- name: Adjust project check role when using openshift prefix
+  template:
+    src: "project_task.yml"
+    dest: /tmp/enmasse-{{ enmasse_version }}/templates/ansible/roles/project/tasks/main.yml
+    force: yes
+  when: ns_prefix != ""
+
+- name: "Provision EnMasse {{ enmasse_version }}"
+  shell: ansible-playbook -i {{ enmasse_inventory_path }}/hosts /tmp/{{enmasse_playbook_location}}
+  args:
+    chdir: "../"
+
+- name: Clean up EnMasse artifacts
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /tmp/enmasse-{{ enmasse_version }}.tgz
+    - /tmp/enmasse-{{ enmasse_version }}.zip
+    - /tmp/enmasse-{{ enmasse_version }}
+  when: enmasse_clean_artifacts
+
+- set_fact:
+    enmasse_rest_route: "{{ hostvars['EVAL_VARS']['openshift_master_url'] }}/apis/enmasse.io"
+
+- name: Retrieve secret for webapp manifest
+  shell: oc get secret manifest -n {{ eval_webapp_namespace }} -o jsonpath="{$.data.generated_manifest}"
+  register: webapp_secret
+  failed_when: webapp_secret.stderr != ""
+
+- set_fact:
+    webapp_manifest: "{{ webapp_secret.stdout | b64decode }}"
+    component_manifests: []
+    new_enmasse:
+      name: "enmasse"
+      version: "{{ enmasse_version }}"
+      host: "{{enmasse_rest_route}}"
+
+- name: "remove old enmasse from new manifest"
+  set_fact:
+    component_manifests: "{{ component_manifests + [item] }}"
+  with_items: "{{webapp_manifest.components}}"
+  when: item.name != "enmasse"
+
+- name: "add new enmasse to new manifest"
+  set_fact:
+    component_manifests: "{{ component_manifests + [new_enmasse]}}"
+
+- name: Generate custom manifest
+  template:
+    src: "manifest.j2"
+    dest: /tmp/generated_manifest
+
+- name: Delete secret if it exists
+  shell: oc delete secret manifest -n {{ eval_webapp_namespace }}
+
+- name: Create manifest secret
+  shell: oc create secret generic manifest --from-file=/tmp/generated_manifest --type=application/json -n {{ eval_webapp_namespace }}
+
+- name: Generate AuthenticationService
+  template:
+    src: authenticationservice.yml.j2
+    dest: "/tmp/authenticationservice.yml"
+
+- name: Generate keycloak admin password
+  set_fact:
+    keycloak_admin_password: "{{ lookup('password', '/dev/null length=15 chars=ascii_letters') }}"
+
+- name: Create secret with the keycloak credentials
+  shell: oc create secret generic -n {{ enmasse_namespace }} keycloak-credentials --from-literal=admin.username=admin --from-literal=admin.password={{ keycloak_admin_password }}
+  register: secret_exists
+  failed_when: secret_exists.stderr != '' and 'AlreadyExists' not in secret_exists.stderr
+
+- name: Label secret
+  shell: oc label secret keycloak-credentials -n {{ enmasse_namespace }} app=enmasse
+  when: secret_exists.rc == 0
+
+- name: "Create EnMasse AuthenticationService"
+  shell: oc create -f /tmp/authenticationservice.yml
+  register: authenticationservice_exists
+  failed_when: authenticationservice_exists.stderr != '' and 'AlreadyExists' not in authenticationservice_exists.stderr
+
+- name: "Verify EnMasse deployment succeeded"
+  shell: sleep 5; oc get pods --namespace {{ enmasse_namespace }}  |  grep  "deploy"
+  register: result
+  until: not result.stdout
+  retries: 50
+  delay: 10
+  failed_when: result.stdout
+  changed_when: False
+
+- name: "redeploy tutorial-web-app"
+  shell: "oc rollout latest dc/tutorial-web-app -n {{ eval_webapp_namespace }}"
+
+### SOME PRETTY NASTY PATCHES FROM HERE ON ###
+
+- name: "update standard-controller env vars"
+  shell: |
+    oc set env -n {{ enmasse_namespace }} --overwrite deployment --selector="infraType=standard" --containers="standard-controller" \
+    TEMPLATE_DIR=/opt/templates \
+    ENABLE_EVENT_LOGGER=true \
+    BROKER_IMAGE=registry.redhat.io/amq-broker-7/amq-broker-72-openshift:latest \
+    BROKER_PLUGIN_NAME=registry.redhat.io/amq7/amq-online-1-broker-plugin:1.1 \
+    TOPIC_FORWARDER_IMAGE=registry.redhat.io/amq7/amq-online-1-topic-forwarder:1.1 \
+    Always=Always
+
+## ENV VARS ENDING IN A - ARE DELETED
+- name: "update agent env vars"
+  shell: |
+    oc set env -n {{ enmasse_namespace }} --overwrite deployment --selector="infraType=standard" --containers="agent" \
+    AUTHENTICATION_SERVICE_OAUTH_URL- \
+    AUTHENTICATION_SERVICE_KC_IDP_HINT- \
+    CONSOLE_OAUTH_DISCOVERY_URL=https://openshift.default.svc/.well-known/oauth-authorization-server \
+    CONSOLE_OAUTH_SCOPE='user:full' \
+    CONSOLE_LINK='https://console-enmasse.{{ hostvars['EVAL_VARS']['eval_app_host'] }}'
+
+- name: "patch console deploys to read env vars from secret"
+  shell: |
+    for d in $(oc get deployments -n {{ enmasse_namespace }} --selector="infraType=standard" | grep -v "NAME" | awk '{print $1}'); do
+      oc patch -n {{ enmasse_namespace }} deployment ${d} --type=json --patch '[
+        {
+          "op": "add",
+          "path": "/spec/template/spec/containers/1/env/-",
+          "value": {
+            "name": "CONSOLE_OAUTH_CLIENT_ID",
+            "valueFrom": {
+              "secretKeyRef": {"key": "client-id", "name": "console-oauth"}
+            }
+          }
+        },
+        {
+          "op": "add",
+          "path": "/spec/template/spec/containers/1/env/-",
+          "value": {
+            "name": "CONSOLE_OAUTH_CLIENT_SECRET",
+            "valueFrom": {
+              "secretKeyRef": {"key": "client-secret", "name": "console-oauth"}
+            }
+          }
+        },
+        {
+          "op": "add",
+          "path": "/spec/template/spec/containers/1/env/-",
+          "value": {
+            "name": "SSO_COOKIE_SECRET",
+            "valueFrom": {
+              "secretKeyRef": {"key": "cookie-secret", "name": "console-sso-cookie-secret"}
+            }
+          }
+        }
+      ]';
+    done;
+
+- name: "patch console deployments"
+  shell: |
+    for d in $(oc get deployments -n {{ enmasse_namespace }} --selector="infraType=standard" | grep -v "NAME" | awk '{print $1}'); do
+      oc patch -n {{ enmasse_namespace }} deployment ${d} --type=json --patch '[
+        {
+          "op": "remove",
+          "path": "/spec/template/spec/containers/0/volumeMounts/1"
+        },
+        {
+          "op": "replace",
+          "path": "/spec/template/spec/containers/0/image",
+          "value": "registry.redhat.io/amq7/amq-online-1-standard-controller:1.1"
+        },
+        {
+          "op": "replace",
+          "path": "/spec/template/spec/containers/1/image",
+          "value": "registry.redhat.io/amq7/amq-online-1-agent:1.1"
+        },
+        {
+          "op": "remove",
+          "path": "/spec/template/spec/volumes/4"
+        },
+        {
+          "op": "add",
+          "path": "/spec/template/spec/volumes/-",
+          "value": {
+            "name": "sso-cookie-secret",
+            "secret": {
+              "defaultMode": "420",
+              "optional": true,
+              "secretName": "console-sso-cookie-secret"
+            }
+          }
+        }
+      ]';
+    done;
+
+- name: "update namespace env vars in console deployments"
+  shell: |
+    for ns in $(oc get namespaces | grep -v "NAME" | awk '{print $1}'); do
+      for si in $(oc get serviceinstances -n ${ns} 2>&1 | grep "amq-online" | awk '{print $1}'); do
+        address=$(oc get serviceinstance ${si} -n ${ns} -o jsonpath="{$.status.dashboardURL}" | cut -f5 -d"/");
+        for d in $(oc get deployments -n {{ enmasse_namespace }} | grep "admin\." | awk '{print $1}'); do
+          found=$(oc get deployment ${d} -n {{ enmasse_namespace }} -o=jsonpath="{$.spec.template.spec.containers[0].env}" | grep ${address} | wc -l);
+          if [ ${found} == "1" ]; then
+            oc set env --overwrite deployment ${d} -n {{ enmasse_namespace }} ADDRESS_SPACE_NAMESPACE=${ns}
+          fi;
+        done;
+      done;
+    done;
+
+- name: "create policies for console qdrouter statefulsets"
+  shell: |
+    for router_hash in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do
+      oc create configmap -n {{ enmasse_namespace }} qdrouterd-policies.${router_hash} --from-literal="policies.json=[]"
+    done;
+
+- name: "get qrouterd hashes"
+  shell: |
+    for router_hash in $(oc get -n enmasse statefulsets | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do echo ${router_hash}; done
+  register: qrouterd_hashes
+
+- name: "upgrade qrouterd-config configmaps"
+  include_tasks: _upgrade_qrouterd_configmap.yml
+  vars:
+    router_hash: "{{item}}"
+  with_items: "{{qrouterd_hashes.stdout_lines}}"
+
+- name: "delete amqps-probe port from qdrouterd statefulsets"
+  shell: |
+    for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
+      index=$(oc get statefulset ${ss} -n {{ enmasse_namespace }} -o jsonpath='{range $.spec.template.spec.containers[0].ports[*]}{.name}{"\n"}{end}' | grep amqps-probe -B15 | grep -v amqps-probe | wc -l)
+      oc patch -n {{ enmasse_namespace }} statefulset $ss --type=json --patch '[
+        {
+          "op": "remove",
+          "path": "/spec/template/spec/containers/0/ports/'${index}'"
+        }
+      ]';
+    done;
+
+- name: "patch qdrouterd statefulsets"
+  shell: |
+    for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
+      hash=$(echo ${ss} | cut -f2 -d-);
+      oc patch -n {{ enmasse_namespace }} statefulset ${ss} --type=json --patch '[
+        {
+          "op": "add",
+          "path": "/spec/template/spec/volumes/-",
+          "value": {
+            "name": "qdrouterd-policies",
+            "configMap": {
+              "defaultMode": "420",
+              "name": "qdrouterd-policies.'${hash}'"
+            }
+          }
+        },
+        {
+          "op": "replace",
+          "path": "/spec/template/spec/containers/0/image",
+          "value": "registry.redhat.io/amq7/amq-interconnect:1.4"
+        },
+        {
+          "op": "replace",
+          "path": "/spec/template/spec/containers/0/livenessProbe",
+          "value": {
+            "httpGet": {
+              "path": "/healthz",
+              "port": "local-http",
+              "scheme": "HTTP"
+            },
+            "initialDelaySeconds": "30",
+            "failureThreshold": "3",
+            "periodSeconds": "10",
+            "successThreshold": "1"
+          }
+        },
+        {
+          "op": "replace",
+          "path": "/spec/template/spec/containers/0/readinessProbe",
+          "value": {
+            "httpGet": {
+              "path": "/healthz",
+              "port": "http",
+              "scheme": "HTTP"
+            },
+            "initialDelaySeconds": "60",
+            "periodSeconds": "10",
+            "successThreshold": "1",
+            "timeoutSeconds": "1"
+          }
+        },
+        {
+          "op": "add",
+          "path": "/spec/template/spec/containers/0/volumeMounts/-",
+          "value": {
+            "mountPath": "/etc/qpid-dispatch/policies",
+            "name": "qdrouterd-policies"
+          }
+        },
+        {
+          "op": "add",
+          "path": "/spec/template/spec/containers/0/ports/-",
+          "value": {
+            "name": "local",
+            "containerPort": "7777",
+            "protocol": "TCP"
+          }
+        },
+        {
+          "op": "add",
+          "path": "/spec/template/spec/containers/0/ports/-",
+          "value": {
+            "name": "local-http",
+            "containerPort": "7770",
+            "protocol": "TCP"
+          }
+        },
+        {
+          "op": "add",
+          "path": "/spec/template/spec/containers/0/ports/-",
+          "value": {
+            "name": "http",
+            "containerPort": "8080",
+            "protocol": "TCP"
+          }
+        }
+      ]'
+    done;
 
 - name: "delete old qdrouterd pods"
   shell: |
