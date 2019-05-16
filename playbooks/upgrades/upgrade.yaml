@@ -124,3 +124,9 @@
           failed_when: upgrade_cronjob.stderr != '' and 'not patched' not in upgrade_cronjob.stderr
           with_items: "{{ cronjobs }}"
       when: backup_restore_install | default(false) | bool
+
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - include_role:
+        name: customisation
