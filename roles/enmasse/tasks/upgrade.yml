@@ -355,4 +355,4 @@
   register: wait_for_qdrouterd
   retries: 60
   delay: 5
-  until: wait_for_qdrouterd.stdout == ""
+  until: wait_for_qdrouterd.stdout == "0"
