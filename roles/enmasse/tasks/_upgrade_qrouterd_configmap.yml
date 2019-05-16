@@ -1,4 +1,3 @@
----
 - name: "get realm"
   shell: oc get configmap -n {{ enmasse_namespace }} qdrouterd-config.{{router_hash}} -o yaml | grep saslInitHostname | awk '{print $2}'
   register: get_realm
