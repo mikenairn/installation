@@ -250,7 +250,7 @@
       oc patch -n {{ enmasse_namespace }} statefulset $ss --type=json --patch '[
         {
           "op": "remove",
-          "path": "spec/template/spec/containers/0/ports/'${index}'"
+          "path": "/spec/template/spec/containers/0/ports/'${index}'"
         }
       ]';
     done;
@@ -262,7 +262,7 @@
       oc patch -n {{ enmasse_namespace }} statefulset ${ss} --type=json --patch '[
         {
           "op": "replace",
-          "path": "spec/template/spec/volumes/-",
+          "path": "/spec/template/spec/volumes/-",
           "value": {
             "name": "qdrouterd-policies",
             "configMap": {
@@ -273,12 +273,12 @@
         },
         {
           "op": "replace",
-          "path": "spec/template/spec/containers/0/image",
+          "path": "/spec/template/spec/containers/0/image",
           "value": "registry.redhat.io/amq7/amq-interconnect:1.4"
         },
         {
           "op": "replace",
-          "path": "spec/template/spec/containers/0/livenessProbe",
+          "path": "/spec/template/spec/containers/0/livenessProbe",
           "value": {
             "httpGet": {
               "path": "/healthz",
@@ -293,7 +293,7 @@
         },
         {
           "op": "replace",
-          "path": "spec/template/spec/containers/0/readinessProbe",
+          "path": "/spec/template/spec/containers/0/readinessProbe",
           "value": {
             "httpGet": {
               "path": "/healthz",
@@ -308,7 +308,7 @@
         },
         {
           "op": "add",
-          "path": "spec/template/spec/containers/0/volumeMounts",
+          "path": "/spec/template/spec/containers/0/volumeMounts",
           "value": {
             "mountPath": "/etc/qpid-dispatch/policies",
             "name": "qdrouterd-policies"
@@ -316,7 +316,7 @@
         },
         {
           "op": "add",
-          "path": "spec/template/spec/containers/0/ports/-",
+          "path": "/spec/template/spec/containers/0/ports/-",
           "value": {
             "name": "local",
             "containerPort": "7777",
@@ -325,7 +325,7 @@
         },
         {
           "op": "add",
-          "path": "spec/template/spec/containers/0/ports/-",
+          "path": "/spec/template/spec/containers/0/ports/-",
           "value": {
             "name": "local-http",
             "containerPort": "7770",
@@ -334,7 +334,7 @@
         },
         {
           "op": "add",
-          "path": "spec/template/spec/containers/0/ports/-",
+          "path": "/spec/template/spec/containers/0/ports/-",
           "value": {
             "name": "http",
             "containerPort": "8080",
