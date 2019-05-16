@@ -141,7 +141,7 @@
 #- name: "patch console deploys to read env vars from secret"
 #  shell: |
 #    for d in $(oc get deployments -n {{ enmasse_namespace }} --selector="infraType=standard" | grep -v "NAME" | awk '{print $1}'); do
-#      oc patch -n {{ enmasse_namespace }} deployment $d --type=json --patch '[
+#      oc patch -n {{ enmasse_namespace }} deployment ${d} --type=json --patch '[
 #        {
 #          "op": "add",
 #          "path": "/spec/template/spec/containers/1/env/-",
@@ -178,7 +178,7 @@
 #- name: "patch console deployments"
 #  shell: |
 #    for d in $(oc get deployments -n {{ enmasse_namespace }} --selector="infraType=standard" | grep -v "NAME" | awk '{print $1}'); do
-#      oc patch -n {{ enmasse_namespace }} deployment $d --type=json --patch '[
+#      oc patch -n {{ enmasse_namespace }} deployment ${d} --type=json --patch '[
 #        {
 #          "op": "remove",
 #          "path": "/spec/template/spec/containers/0/volumeMounts/1"
@@ -215,12 +215,12 @@
 #- name: "update namespace env vars in console deployments"
 #  shell: |
 #    for ns in $(oc get namespaces | grep -v "NAME" | awk '{print $1}'); do
-#      for si in $(oc get serviceinstances -n $ns 2>&1 | grep "amq-online" | awk '{print $1}'); do
-#        address=$(oc get serviceinstance $si -n $ns -o jsonpath="{$.status.dashboardURL}" | cut -f5 -d"/");
+#      for si in $(oc get serviceinstances -n ${ns} 2>&1 | grep "amq-online" | awk '{print $1}'); do
+#        address=$(oc get serviceinstance ${si} -n ${ns} -o jsonpath="{$.status.dashboardURL}" | cut -f5 -d"/");
 #        for d in $(oc get deployments -n {{ enmasse_namespace }} | grep "admin\." | awk '{print $1}'); do
-#          found=$(oc get deployment $d -n {{ enmasse_namespace }} -o=jsonpath="{$.spec.template.spec.containers[0].env}" | grep $address | wc -l);
-#          if [ $found == "1" ]; then
-#            oc set env --overwrite deployment $d -n {{ enmasse_namespace }} ADDRESS_SPACE_NAMESPACE=$ns
+#          found=$(oc get deployment ${d} -n {{ enmasse_namespace }} -o=jsonpath="{$.spec.template.spec.containers[0].env}" | grep ${address} | wc -l);
+#          if [ ${found} == "1" ]; then
+#            oc set env --overwrite deployment ${d} -n {{ enmasse_namespace }} ADDRESS_SPACE_NAMESPACE=${ns}
 #          fi;
 #        done;
 #      done;
@@ -234,7 +234,7 @@
 #
 #- name: "get qrouterd hashes"
 #  shell: |
-#    for router_hash in $(oc get -n enmasse statefulsets | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do echo $router_hash; done
+#    for router_hash in $(oc get -n enmasse statefulsets | grep qdrouterd | awk '{print $1}' | cut -f2 -d-); do echo ${router_hash}; done
 #  register: qrouterd_hashes
 #
 #- name: "upgrade qrouterd-config configmaps"
@@ -246,7 +246,7 @@
 - name: "delete amqps-probe port from qdrouterd statefulsets"
   shell: |
     for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
-      index=$(oc get statefulset ss -n {{ enmasse_namespace }} -o jsonpath='{range $.spec.template.spec.containers[0].ports[*]}{.name}{"\n"}{end}' | grep amps-probe -B15 | grep -v amqps-probe | wc -l)
+      index=$(oc get statefulset ${ss} -n {{ enmasse_namespace }} -o jsonpath='{range $.spec.template.spec.containers[0].ports[*]}{.name}{"\n"}{end}' | grep amps-probe -B15 | grep -v amqps-probe | wc -l)
       oc patch -n {{ enmasse_namespace }} statefulset $ss --type=json --patch '[
         {
           "op": "remove",
@@ -258,8 +258,8 @@
 - name: "patch qdrouterd statefulsets"
   shell: |
     for ss in $(oc get statefulsets -n {{ enmasse_namespace }} | grep qdrouterd | awk '{print $1}'); do
-      hash=$(echo $ss | cut -f2 -d-);
-      oc patch -n {{ enmasse_namespace }} statefulset $ss --type=json --patch '[
+      hash=$(echo ${ss} | cut -f2 -d-);
+      oc patch -n {{ enmasse_namespace }} statefulset ${ss} --type=json --patch '[
         {
           "op": "replace",
           "path": "spec/template/spec/volumes/-",
