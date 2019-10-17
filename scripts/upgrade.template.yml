@@ -1,0 +1,8 @@
+##Auto generated file, please do not add variables manually without updated the template in scripts/upgrade.template.yml
+
+upgrade_from_version: UPGRADE_VERSION_FROM
+
+#Upgrade Products
+upgrade_products: []
+
+upgrade_tasks_from: UPGRADE_TASKS_FROM
