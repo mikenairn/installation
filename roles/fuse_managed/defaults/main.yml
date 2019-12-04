@@ -8,7 +8,6 @@ fuse_pull_secret_name: "syndesis-pull-secret"
 fuse_resources: []
 
 fuse_image_streams:
-    namespace: "{{ fuse_namespace }}"
   - name: "fuse-online-operator"
     image: "registry.redhat.io/fuse7/fuse-online-operator:1.4-11"
     tag: "1.7"
